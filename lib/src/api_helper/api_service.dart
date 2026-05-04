@@ -20,6 +20,8 @@ class APIService {
     Dio dio = dioClient.getDioClient(
       isAuth: request.isAuthorization,
       callback: request.onError,
+      showHttpLogging: request.showHttpLogging,
+      showCurlLogging: request.showCurlLogging,
     );
     switch (request.methodType) {
       case MethodType.GET:
