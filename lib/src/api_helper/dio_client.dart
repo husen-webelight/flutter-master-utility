@@ -22,6 +22,8 @@ class DioClient {
 
   Dio getDioClient({
     bool isAuth = true,
+    bool showHttpLogging = true,
+    bool showCurlLogging = true,
     void Function(
       DioException dioException,
       ErrorInterceptorHandler errorInterceptorHandler,
@@ -37,8 +39,13 @@ class DioClient {
     }
 
     if (_isApiLogVisible) {
-      interceptors.add(HttpFormatter(loggingFilter: (request, response, error) => true));
-      interceptors.add(CurlLoggerDioInterceptor(printOnSuccess: true));
+      if (showHttpLogging) {
+        interceptors.add(
+            HttpFormatter(loggingFilter: (request, response, error) => true));
+      }
+      if (showCurlLogging) {
+        interceptors.add(CurlLoggerDioInterceptor(printOnSuccess: true));
+      }
     }
 
     if (_logarteClient != null) {
