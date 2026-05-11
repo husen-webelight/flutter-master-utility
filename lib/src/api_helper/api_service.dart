@@ -20,6 +20,8 @@ class APIService {
     Dio dio = dioClient.getDioClient(
       isAuth: request.isAuthorization,
       callback: request.onError,
+      showHttpLogging: request.showHttpLogging,
+      showCurlLogging: request.showCurlLogging,
     );
     switch (request.methodType) {
       case MethodType.GET:
@@ -77,6 +79,7 @@ class APIService {
     }
   }
 
+  @Deprecated('This method will be removed in the future. Use `getResponseWithMapper` instead of this method')
   Future<APIResponse<dynamic>> getApiResponse(
     APIRequest request, {
     Function(dynamic)? apiResponse,
@@ -125,23 +128,52 @@ class APIService {
       }
       if (e.response != null) {
         final APIResponse<dynamic> errorModel;
-        if (e.response?.statusCode == 422) {
-          if (e.response?.data['detail']?.isNotEmpty ?? false) {
-            ApiErrorModel errorResponse = ApiErrorModel.fromJson(e.response?.data);
-            String errorMessage = setErrorData(errorResponse.detail);
+        // If custom error mapper is provided, use it to map the error response
+        if (dioClient.customErrorMapper != null) {
+          errorModel = dioClient.customErrorMapper!.call(e.response!);
+        }
+        // If custom error mapper is not provided, use the default error mapper
+        else {
+          if (e.response?.statusCode == 422) {
+            if (e.response?.data['detail']?.isNotEmpty ?? false) {
+              ApiErrorModel errorResponse = ApiErrorModel.fromJson(e.response?.data);
+              String errorMessage = setErrorData(errorResponse.detail);
 
-            debugPrint(errorMessage);
+              debugPrint(errorMessage);
 
+              Response<dynamic> responseData = Response(
+                requestOptions: RequestOptions(path: ""),
+                data: {
+                  "hasError": true,
+                  "message": errorMessage,
+                  "statusCode": e.response?.statusCode,
+                  "data": e.response?.data,
+                },
+                statusCode: e.response?.statusCode,
+                statusMessage: errorMessage,
+              );
+
+              errorModel = APIResponse<dynamic>.fromJson(
+                responseData,
+                create: apiResponse,
+              );
+            } else {
+              errorModel = APIResponse<dynamic>.fromJson(
+                e.response!,
+                create: apiResponse,
+              );
+            }
+          } else if (e.response?.statusCode == 500) {
             Response<dynamic> responseData = Response(
               requestOptions: RequestOptions(path: ""),
               data: {
                 "hasError": true,
-                "message": errorMessage,
+                "message": e.response?.statusMessage,
                 "statusCode": e.response?.statusCode,
                 "data": e.response?.data,
               },
               statusCode: e.response?.statusCode,
-              statusMessage: errorMessage,
+              statusMessage: e.response?.statusMessage,
             );
 
             errorModel = APIResponse<dynamic>.fromJson(
@@ -154,28 +186,6 @@ class APIService {
               create: apiResponse,
             );
           }
-        } else if (e.response?.statusCode == 500) {
-          Response<dynamic> responseData = Response(
-            requestOptions: RequestOptions(path: ""),
-            data: {
-              "hasError": true,
-              "message": e.response?.statusMessage,
-              "statusCode": e.response?.statusCode,
-              "data": e.response?.data,
-            },
-            statusCode: e.response?.statusCode,
-            statusMessage: e.response?.statusMessage,
-          );
-
-          errorModel = APIResponse<dynamic>.fromJson(
-            responseData,
-            create: apiResponse,
-          );
-        } else {
-          errorModel = APIResponse<dynamic>.fromJson(
-            e.response!,
-            create: apiResponse,
-          );
         }
 
         return errorModel;
@@ -289,47 +299,55 @@ class APIService {
       }
 
       if (e.response != null) {
-        final APIResponse<T> errorModel;
+        final APIResponse<dynamic> errorModel;
 
-        if (e.response?.statusCode == 422) {
-          if (e.response?.data['detail']?.isNotEmpty ?? false) {
-            ApiErrorModel errorResponse = ApiErrorModel.fromJson(e.response?.data);
-            String errorMessage = setErrorData(errorResponse.detail);
+        // If custom error mapper is provided, use it to map the error response
+        if (dioClient.customErrorMapper != null) {
+          errorModel = dioClient.customErrorMapper!.call(e.response!);
+        }
 
-            debugPrint(errorMessage);
+        // If custom error mapper is not provided, use the default error mapper
+        else {
+          if (e.response?.statusCode == 422) {
+            if (e.response?.data['detail']?.isNotEmpty ?? false) {
+              ApiErrorModel errorResponse = ApiErrorModel.fromJson(e.response?.data);
+              String errorMessage = setErrorData(errorResponse.detail);
 
+              debugPrint(errorMessage);
+
+              Response<dynamic> responseData = Response(
+                requestOptions: RequestOptions(path: ""),
+                data: {
+                  "hasError": true,
+                  "message": errorMessage,
+                  "statusCode": e.response?.statusCode,
+                  "data": e.response?.data,
+                },
+                statusCode: e.response?.statusCode,
+                statusMessage: errorMessage,
+              );
+
+              errorModel = APIResponse<T>.fromJson(responseData);
+            } else {
+              errorModel = APIResponse<T>.fromJson(e.response!);
+            }
+          } else if (e.response?.statusCode == 500) {
             Response<dynamic> responseData = Response(
               requestOptions: RequestOptions(path: ""),
               data: {
                 "hasError": true,
-                "message": errorMessage,
+                "message": e.response?.statusMessage,
                 "statusCode": e.response?.statusCode,
                 "data": e.response?.data,
               },
               statusCode: e.response?.statusCode,
-              statusMessage: errorMessage,
+              statusMessage: e.response?.statusMessage,
             );
 
             errorModel = APIResponse<T>.fromJson(responseData);
           } else {
             errorModel = APIResponse<T>.fromJson(e.response!);
           }
-        } else if (e.response?.statusCode == 500) {
-          Response<dynamic> responseData = Response(
-            requestOptions: RequestOptions(path: ""),
-            data: {
-              "hasError": true,
-              "message": e.response?.statusMessage,
-              "statusCode": e.response?.statusCode,
-              "data": e.response?.data,
-            },
-            statusCode: e.response?.statusCode,
-            statusMessage: e.response?.statusMessage,
-          );
-
-          errorModel = APIResponse<T>.fromJson(responseData);
-        } else {
-          errorModel = APIResponse<T>.fromJson(e.response!);
         }
 
         return left(

@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:dio_http_formatter/dio_http_formatter.dart';
+import 'package:master_utility/src/api_helper/interceptor/curl_logger.dart';
 
 import 'jwt_refresher_mixin.dart';
 import 'refresh_typedef.dart';
@@ -39,6 +41,16 @@ class JwtHeroInterceptor extends QueuedInterceptor
 
     retryClient = Dio();
     retryClient.options = BaseOptions(baseUrl: baseClient.options.baseUrl);
+
+    _attachHttpLoggers(refreshClient);
+    _attachHttpLoggers(retryClient);
+  }
+
+  void _attachHttpLoggers(Dio client) {
+    client.interceptors.addAll([
+      HttpFormatter(loggingFilter: (request, response, error) => true),
+      CurlLoggerDioInterceptor(printOnSuccess: true),
+    ]);
   }
 
   /// The storage to load and save the JWT token.
@@ -127,10 +139,10 @@ class JwtHeroInterceptor extends QueuedInterceptor
       return handler.reject(err);
     }
 
-    /// If the JWT token is valid, retry the request.
+    /// If the JWT token is valid && status code is not equal to 401, retry the request.
     /// If the JWT token is not valid, refresh it and retry the request.
     try {
-      if (jwtToken.isValid) {
+      if (jwtToken.isValid && !shouldRefresh(err.response)) {
         final previousRequest = await retry(
           retryClient: retryClient,
           requestOptions: err.requestOptions,
