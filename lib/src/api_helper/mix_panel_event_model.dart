@@ -11,8 +11,8 @@ class MixPanelEventModel {
 
   MixPanelEventModel({
     this.eventName,
-    this.successData,
-    this.errorData,
+    @Deprecated('Use successDataBuilder instead of successData that will be removed in the future') this.successData,
+    @Deprecated('Use errorDataBuilder instead of errorData that will be removed in the future') this.errorData,
     this.errorDataBuilder,
     this.successDataBuilder,
   });
